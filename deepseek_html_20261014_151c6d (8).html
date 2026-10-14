@@ -1,0 +1,2430 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ШИНHUB - Поиск шиномонтажа</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0a0a0a;
+            --card-bg: #141414;
+            --accent-red: #ff1a1a;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --border-color: #222222;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 0%, #2a0000 0%, transparent 70%);
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            position: relative;
+            box-shadow: 0 0 50px rgba(255, 26, 26, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(10, 10, 10, 0.9);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+
+        .header-logo img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+        }
+
+        .header-logo span {
+            color: var(--accent-red);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .change-city {
+            font-size: 11px;
+            color: var(--text-muted);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .profile-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+            color: white;
+        }
+
+        .profile-btn.has-user {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 80px;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #map-tab {
+            padding: 0 !important;
+        }
+
+        #map-tab.active {
+            display: block;
+        }
+
+        #full-map {
+            width: 100%;
+            height: calc(100vh - 160px);
+            min-height: 400px;
+            background: #e8e8e8;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 480px;
+            background: rgba(10, 10, 10, 0.95);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            z-index: 200;
+        }
+
+        .nav-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 14px 10px;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .nav-btn .nav-icon {
+            font-size: 20px;
+        }
+
+        .nav-btn.active {
+            color: var(--accent-red);
+        }
+
+        .search-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 15px;
+            color: white;
+            width: 100%;
+            margin-bottom: 20px;
+            outline: none;
+        }
+
+        .search-bar:focus {
+            border-color: var(--accent-red);
+        }
+
+        .tire-shop-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tire-shop-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-red);
+        }
+
+        .shop-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .shop-header-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .shop-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .shop-rating {
+            color: #ffcc00;
+            font-size: 14px;
+        }
+
+        .shop-info {
+            font-size: 14px;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .shop-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn-show-on-map {
+            flex: 1;
+            background: transparent;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .btn-show-on-map:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn-book {
+            flex: 1.5;
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .btn-book:hover {
+            background: #cc0000;
+        }
+
+        .btn-call {
+            flex: 1;
+            background: transparent;
+            color: white;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .btn-call:hover {
+            border-color: var(--accent-red);
+        }
+
+        .distance {
+            font-size: 12px;
+            color: var(--accent-red);
+            font-weight: bold;
+        }
+
+        /* ПРИВЕТСТВЕННЫЙ ЭКРАН */
+        .welcome-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            padding: 40px 25px;
+            text-align: center;
+        }
+
+        .welcome-logo {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 0 50px rgba(255, 26, 26, 0.5);
+            margin-bottom: 25px;
+        }
+
+        .welcome-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .welcome-title {
+            font-size: 38px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .welcome-title span {
+            color: var(--accent-red);
+        }
+
+        .welcome-subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            max-width: 320px;
+        }
+
+        .login-btn {
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 0 25px rgba(255, 26, 26, 0.4);
+        }
+
+        .login-btn:hover {
+            background: #cc0000;
+        }
+
+        .login-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* КНОПКА ИЗБРАННОГО */
+        .fav-btn {
+            background: transparent;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+
+        .fav-btn:hover {
+            background: rgba(255, 26, 26, 0.15);
+            transform: scale(1.1);
+            color: var(--accent-red);
+        }
+
+        .fav-btn.active {
+            color: var(--accent-red);
+        }
+
+        /* Кнопка избранного в попапе карты */
+        .map-popup .popup-fav {
+            background: transparent;
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 8px;
+            width: 100%;
+            margin-top: 6px;
+            text-transform: uppercase;
+        }
+
+        .map-popup .popup-fav.active {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a0505 0%, var(--card-bg) 100%);
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .profile-avatar {
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: bold;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .profile-info h2 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .profile-info p {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .profile-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            padding: 18px;
+            margin-bottom: 15px;
+        }
+
+        .profile-section-title {
+            font-size: 14px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-action {
+            font-size: 11px;
+            color: var(--accent-red);
+            cursor: pointer;
+            text-decoration: underline;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .info-value {
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .car-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #0a0a0a;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent-red);
+            gap: 10px;
+        }
+
+        .car-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .car-item-name {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .car-item-plate {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        .car-item-delete {
+            background: rgba(255, 26, 26, 0.1);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+
+        .car-item-delete:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .empty-state {
+            color: var(--text-muted);
+            font-size: 13px;
+            text-align: center;
+            padding: 15px;
+            font-style: italic;
+            line-height: 1.5;
+        }
+
+        .add-car-form {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .add-car-form.visible {
+            display: flex;
+        }
+
+        .add-car-form input {
+            padding: 12px 14px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .add-car-form input:focus {
+            border-color: var(--accent-red);
+        }
+
+        .car-select {
+            padding: 12px 14px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ff1a1a' stroke-width='3'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 40px;
+            width: 100%;
+        }
+
+        .car-select:focus {
+            border-color: var(--accent-red);
+        }
+
+        .car-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .car-select option {
+            background: var(--card-bg);
+            color: white;
+        }
+
+        .car-custom-input {
+            padding: 12px 14px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .car-custom-input:focus {
+            border-color: var(--accent-red);
+        }
+
+        .add-car-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-small.primary {
+            background: var(--accent-red);
+            border: none;
+            color: white;
+        }
+
+        .btn-small.secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: white;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 12px;
+            background: #0a0a0a;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent-red);
+            gap: 10px;
+        }
+
+        .order-info {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .order-title {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .order-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .order-date {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .order-price {
+            font-weight: bold;
+            color: var(--accent-red);
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 25px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 0 40px rgba(255, 26, 26, 0.3);
+        }
+
+        .modal h3 {
+            margin-bottom: 8px;
+            font-size: 20px;
+        }
+
+        .modal p {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .modal input, .modal select, .modal textarea {
+            width: 100%;
+            padding: 14px 16px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 12px;
+            font-family: inherit;
+        }
+
+        .modal textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .modal input:focus, .modal select:focus, .modal textarea:focus {
+            border-color: var(--accent-red);
+        }
+
+        .modal select {
+            cursor: pointer;
+        }
+
+        .modal select option {
+            background: var(--card-bg);
+            color: white;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .modal-actions .cancel {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: white;
+        }
+
+        .modal-actions .confirm {
+            background: var(--accent-red);
+            border: none;
+            color: white;
+        }
+
+        .booking-shop-name {
+            color: var(--accent-red);
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .booking-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            margin-top: 15px;
+            display: block;
+        }
+
+        .date-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            margin-bottom: 5px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-red) transparent;
+        }
+
+        .date-scroll::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .date-scroll::-webkit-scrollbar-thumb {
+            background: var(--accent-red);
+            border-radius: 2px;
+        }
+
+        .date-card {
+            flex-shrink: 0;
+            width: 60px;
+            padding: 10px 5px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .date-card:hover {
+            border-color: var(--accent-red);
+        }
+
+        .date-card.selected {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .date-card .date-day {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .date-card.selected .date-day {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .date-card .date-num {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .date-card .date-month {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .date-card.selected .date-month {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .time-slot {
+            padding: 10px 5px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+            transition: all 0.2s;
+        }
+
+        .time-slot:hover:not(.busy) {
+            border-color: var(--accent-red);
+        }
+
+        .time-slot.selected {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+            color: white;
+        }
+
+        .time-slot.busy {
+            opacity: 0.3;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+
+        .booking-summary {
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: var(--text-muted);
+            display: none;
+            line-height: 1.6;
+        }
+
+        .booking-summary.visible {
+            display: block;
+        }
+
+        .booking-summary strong {
+            color: white;
+        }
+
+        .leaflet-container {
+            background: #e8e8e8 !important;
+            font-family: 'Segoe UI', sans-serif !important;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--card-bg);
+            color: white;
+            border-radius: 10px;
+            border: 1px solid var(--accent-red);
+        }
+
+        .leaflet-popup-tip {
+            background: var(--card-bg);
+        }
+
+        .leaflet-popup-close-button {
+            color: white !important;
+        }
+
+        .leaflet-control-attribution {
+            background: rgba(255, 255, 255, 0.8) !important;
+            color: #333 !important;
+            font-size: 9px !important;
+        }
+
+        .leaflet-control-attribution a {
+            color: #0066cc !important;
+        }
+
+        .map-popup {
+            min-width: 220px;
+        }
+
+        .map-popup h4 {
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: white;
+        }
+
+        .map-popup p {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+
+        .map-popup .popup-rating {
+            color: #ffcc00;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .map-popup .popup-btn {
+            display: block;
+            width: 100%;
+            margin-top: 6px;
+            padding: 8px;
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .map-popup .popup-btn.secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- ПРИВЕТСТВЕННЫЙ ЭКРАН -->
+    <div id="welcome-screen" class="screen">
+        <div class="welcome-container">
+            <div class="welcome-logo">
+                <img src="logo.png" alt="ШИНHUB" onerror="this.src='https://via.placeholder.com/150/000000/ff1a1a?text=LOGO'">
+            </div>
+            <h1 class="welcome-title">ШИН<span>HUB</span></h1>
+            <p class="welcome-subtitle">Найдите ближайший шиномонтаж и запишитесь онлайн</p>
+            
+            <label class="booking-label" style="text-align: left; margin-top: 30px;">📍 Выберите ваш город</label>
+            <select id="welcome-city-select" class="car-select" style="margin-bottom: 15px;">
+                <option value="Москва">Москва</option>
+                <option value="Санкт-Петербург">Санкт-Петербург</option>
+                <option value="Новосибирск">Новосибирск</option>
+                <option value="Екатеринбург">Екатеринбург</option>
+                <option value="Казань">Казань</option>
+                <option value="Нижний Новгород">Нижний Новгород</option>
+                <option value="Челябинск">Челябинск</option>
+                <option value="Самара">Самара</option>
+                <option value="Омск">Омск</option>
+                <option value="Ростов-на-Дону">Ростов-на-Дону</option>
+                <option value="Уфа">Уфа</option>
+                <option value="Красноярск">Красноярск</option>
+                <option value="Воронеж">Воронеж</option>
+                <option value="Пермь">Пермь</option>
+                <option value="Волгоград">Волгоград</option>
+                <option value="Краснодар">Краснодар</option>
+                <option value="Саратов">Саратов</option>
+                <option value="Тюмень">Тюмень</option>
+                <option value="Тольятти">Тольятти</option>
+                <option value="Ижевск">Ижевск</option>
+                <option value="Иркутск">Иркутск</option>
+                <option value="Владивосток">Владивосток</option>
+                <option value="Ярославль">Ярославль</option>
+                <option value="Хабаровск">Хабаровск</option>
+                <option value="Махачкала">Махачкала</option>
+                <option value="Томск">Томск</option>
+                <option value="Оренбург">Оренбург</option>
+                <option value="Кемерово">Кемерово</option>
+                <option value="Новокузнецк">Новокузнецк</option>
+                <option value="Рязань">Рязань</option>
+                <option value="Астрахань">Астрахань</option>
+                <option value="Набережные Челны">Набережные Челны</option>
+                <option value="Пенза">Пенза</option>
+                <option value="Липецк">Липецк</option>
+                <option value="Тула">Тула</option>
+                <option value="Киров">Киров</option>
+                <option value="Чебоксары">Чебоксары</option>
+                <option value="Калининград">Калининград</option>
+                <option value="Курск">Курск</option>
+                <option value="Ульяновск">Ульяновск</option>
+                <option value="Ставрополь">Ставрополь</option>
+                <option value="Магнитогорск">Магнитогорск</option>
+                <option value="Сочи">Сочи</option>
+                <option value="Белгород">Белгород</option>
+                <option value="Нижний Тагил">Нижний Тагил</option>
+                <option value="Архангельск">Архангельск</option>
+                <option value="Владимир">Владимир</option>
+                <option value="Смоленск">Смоленск</option>
+                <option value="Курган">Курган</option>
+                <option value="Орёл">Орёл</option>
+                <option value="Череповец" selected>Череповец</option>
+                <option value="Вологда">Вологда</option>
+                <option value="Великий Устюг">Великий Устюг</option>
+                <option value="Сокол">Сокол</option>
+                <option value="Грязовец">Грязовец</option>
+                <option value="Бабаево">Бабаево</option>
+                <option value="Кириллов">Кириллов</option>
+                <option value="Белозерск">Белозерск</option>
+                <option value="Устюжна">Устюжна</option>
+                <option value="Вытегра">Вытегра</option>
+                <option value="Никольск">Никольск</option>
+                <option value="Харовск">Харовск</option>
+                <option value="Кадников">Кадников</option>
+                <option value="Тотьма">Тотьма</option>
+                <option value="Мурманск">Мурманск</option>
+                <option value="Тверь">Тверь</option>
+                <option value="Брянск">Брянск</option>
+                <option value="Иваново">Иваново</option>
+                <option value="Кострома">Кострома</option>
+                <option value="Великий Новгород">Великий Новгород</option>
+                <option value="Псков">Псков</option>
+                <option value="Петрозаводск">Петрозаводск</option>
+                <option value="Рыбинск">Рыбинск</option>
+            </select>
+            
+            <button class="login-btn" onclick="confirmWelcomeCity()" style="width: 100%;">
+                Начать поиск
+            </button>
+        </div>
+    </div>
+
+    <div id="main-screen" class="screen">
+        <header>
+            <div class="header-logo">
+                <img src="logo.png" alt="Logo" onerror="this.src='https://via.placeholder.com/30/000000/ff1a1a?text=L'">
+                ШИН<span>HUB</span>
+            </div>
+            <div class="header-actions">
+                <div class="change-city" onclick="openCityModal()">Сменить город (<span id="current-city-display">Череповец</span>)</div>
+                <button class="profile-btn" id="profile-btn" onclick="openProfile()">👤</button>
+            </div>
+        </header>
+
+        <div class="content">
+            <div id="list-tab" class="tab-content active">
+                <input type="text" class="search-bar" placeholder="Поиск по названию или адресу...">
+                <div id="shops-container"></div>
+            </div>
+
+            <div id="map-tab" class="tab-content">
+                <div id="full-map"></div>
+            </div>
+        </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" id="nav-list" onclick="switchTab('list')">
+                <span class="nav-icon">📋</span>
+                Список
+            </button>
+            <button class="nav-btn" id="nav-map" onclick="switchTab('map')">
+                <span class="nav-icon">🗺️</span>
+                Карта
+            </button>
+        </nav>
+    </div>
+
+    <div id="profile-screen" class="screen">
+        <header>
+            <div class="header-logo">
+                <span style="color: var(--accent-red); font-size: 20px; cursor: pointer;" onclick="closeProfile()">←</span>
+                Личный кабинет
+            </div>
+        </header>
+
+        <div class="content">
+            <div class="profile-header">
+                <div class="profile-avatar" id="profile-avatar">?</div>
+                <div class="profile-info">
+                    <h2 id="profile-name">Гость</h2>
+                    <p id="profile-phone">Телефон не указан</p>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <div class="profile-section-title">
+                    Основная информация
+                    <span class="section-action" onclick="openEditModal()">Редактировать</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Город</span>
+                    <span class="info-value" id="profile-city">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Имя</span>
+                    <span class="info-value" id="profile-name-row">—</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Телефон</span>
+                    <span class="info-value" id="profile-phone-row">—</span>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <div class="profile-section-title">
+                    Мои автомобили
+                    <span class="section-action" onclick="toggleAddCar()">+ Добавить</span>
+                </div>
+                <div id="cars-list"></div>
+                
+                <div class="add-car-form" id="add-car-form">
+                    <select id="car-brand-select" class="car-select">
+                        <option value="">Выберите марку...</option>
+                    </select>
+                    <select id="car-model-select" class="car-select" disabled>
+                        <option value="">Сначала выберите марку</option>
+                    </select>
+                    <input type="text" id="car-custom-brand" class="car-custom-input" placeholder="Или введите марку вручную" maxlength="30" style="display: none;">
+                    <input type="text" id="car-plate" placeholder="Госномер (напр. А123БВ35)" maxlength="9" autocomplete="off" spellcheck="false">
+                    <div class="add-car-buttons">
+                        <button class="btn-small secondary" onclick="toggleAddCar()">Отмена</button>
+                        <button class="btn-small primary" onclick="addCar()">Сохранить</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-section">
+                <div class="profile-section-title">Мои записи</div>
+                <div id="orders-list"></div>
+            </div>
+
+            <div class="profile-section">
+                <div class="profile-section-title">Избранные шиномонтажи</div>
+                <div id="favorites-list"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal-overlay" id="city-modal">
+    <div class="modal">
+        <h3>Выберите город</h3>
+        <p>Найдите ближайшие шиномонтажи</p>
+        
+        <select id="city-select">
+            <option value="Москва">Москва</option>
+            <option value="Санкт-Петербург">Санкт-Петербург</option>
+            <option value="Новосибирск">Новосибирск</option>
+            <option value="Екатеринбург">Екатеринбург</option>
+            <option value="Казань">Казань</option>
+            <option value="Нижний Новгород">Нижний Новгород</option>
+            <option value="Челябинск">Челябинск</option>
+            <option value="Самара">Самара</option>
+            <option value="Омск">Омск</option>
+            <option value="Ростов-на-Дону">Ростов-на-Дону</option>
+            <option value="Уфа">Уфа</option>
+            <option value="Красноярск">Красноярск</option>
+            <option value="Воронеж">Воронеж</option>
+            <option value="Пермь">Пермь</option>
+            <option value="Волгоград">Волгоград</option>
+            <option value="Краснодар">Краснодар</option>
+            <option value="Саратов">Саратов</option>
+            <option value="Тюмень">Тюмень</option>
+            <option value="Тольятти">Тольятти</option>
+            <option value="Ижевск">Ижевск</option>
+            <option value="Иркутск">Иркутск</option>
+            <option value="Владивосток">Владивосток</option>
+            <option value="Ярославль">Ярославль</option>
+            <option value="Хабаровск">Хабаровск</option>
+            <option value="Махачкала">Махачкала</option>
+            <option value="Томск">Томск</option>
+            <option value="Оренбург">Оренбург</option>
+            <option value="Кемерово">Кемерово</option>
+            <option value="Новокузнецк">Новокузнецк</option>
+            <option value="Рязань">Рязань</option>
+            <option value="Астрахань">Астрахань</option>
+            <option value="Набережные Челны">Набережные Челны</option>
+            <option value="Пенза">Пенза</option>
+            <option value="Липецк">Липецк</option>
+            <option value="Тула">Тула</option>
+            <option value="Киров">Киров</option>
+            <option value="Чебоксары">Чебоксары</option>
+            <option value="Калининград">Калининград</option>
+            <option value="Курск">Курск</option>
+            <option value="Ульяновск">Ульяновск</option>
+            <option value="Ставрополь">Ставрополь</option>
+            <option value="Магнитогорск">Магнитогорск</option>
+            <option value="Сочи">Сочи</option>
+            <option value="Белгород">Белгород</option>
+            <option value="Нижний Тагил">Нижний Тагил</option>
+            <option value="Архангельск">Архангельск</option>
+            <option value="Владимир">Владимир</option>
+            <option value="Смоленск">Смоленск</option>
+            <option value="Курган">Курган</option>
+            <option value="Орёл">Орёл</option>
+            <option value="Череповец">Череповец</option>
+            <option value="Вологда">Вологда</option>
+            <option value="Великий Устюг">Великий Устюг</option>
+            <option value="Сокол">Сокол</option>
+            <option value="Грязовец">Грязовец</option>
+            <option value="Бабаево">Бабаево</option>
+            <option value="Кириллов">Кириллов</option>
+            <option value="Белозерск">Белозерск</option>
+            <option value="Устюжна">Устюжна</option>
+            <option value="Вытегра">Вытегра</option>
+            <option value="Никольск">Никольск</option>
+            <option value="Харовск">Харовск</option>
+            <option value="Кадников">Кадников</option>
+            <option value="Тотьма">Тотьма</option>
+            <option value="Мурманск">Мурманск</option>
+            <option value="Тверь">Тверь</option>
+            <option value="Брянск">Брянск</option>
+            <option value="Иваново">Иваново</option>
+            <option value="Кострома">Кострома</option>
+            <option value="Великий Новгород">Великий Новгород</option>
+            <option value="Псков">Псков</option>
+            <option value="Петрозаводск">Петрозаводск</option>
+            <option value="Рыбинск">Рыбинск</option>
+        </select>
+
+        <div class="modal-actions">
+            <button class="cancel" onclick="closeCityModal()">Отмена</button>
+            <button class="confirm" onclick="applyCity()">Применить</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+        <h3>Редактировать профиль</h3>
+        <p>Укажите ваше имя и номер телефона</p>
+        <input type="text" id="edit-name" placeholder="Ваше имя" maxlength="30">
+        <input type="tel" id="edit-phone" placeholder="+7 (___) ___-__-__" maxlength="18">
+        <div class="modal-actions">
+            <button class="cancel" onclick="closeEditModal()">Отмена</button>
+            <button class="confirm" onclick="saveProfile()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="booking-modal">
+    <div class="modal">
+        <h3>Запись на шиномонтаж</h3>
+        <div class="booking-shop-name" id="booking-shop-name">—</div>
+
+        <label class="booking-label">📅 Выберите дату</label>
+        <div class="date-scroll" id="date-scroll"></div>
+
+        <label class="booking-label">🕐 Выберите время</label>
+        <div class="time-grid" id="time-grid"></div>
+
+        <label class="booking-label">🚗 Автомобиль</label>
+        <select id="booking-car">
+            <option value="">Выберите автомобиль...</option>
+        </select>
+
+        <label class="booking-label">🔧 Услуга</label>
+        <select id="booking-service">
+            <option value="Шиномонтаж (4 колеса)">Шиномонтаж (4 колеса)</option>
+            <option value="Балансировка колёс">Балансировка колёс</option>
+            <option value="Сезонная замена">Сезонная замена</option>
+            <option value="Ремонт прокола">Ремонт прокола</option>
+            <option value="Подкачка азотом">Подкачка азотом</option>
+        </select>
+
+        <label class="booking-label">💬 Комментарий (необязательно)</label>
+        <textarea id="booking-comment" placeholder="Например: приеду на 15 минут позже" maxlength="200"></textarea>
+
+        <div class="booking-summary" id="booking-summary"></div>
+
+        <div class="modal-actions">
+            <button class="cancel" onclick="closeBookingModal()">Отмена</button>
+            <button class="confirm" onclick="confirmBooking()">Записаться</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const cityCoords = {
+        'Москва': [55.7558, 37.6173], 'Санкт-Петербург': [59.9343, 30.3351],
+        'Новосибирск': [55.0084, 82.9357], 'Екатеринбург': [56.8389, 60.6057],
+        'Казань': [55.8304, 49.0661], 'Нижний Новгород': [56.3269, 44.0059],
+        'Челябинск': [55.1644, 61.4368], 'Самара': [53.2001, 50.15],
+        'Омск': [54.9885, 73.3242], 'Ростов-на-Дону': [47.2357, 39.7015],
+        'Уфа': [54.7388, 55.9721], 'Красноярск': [56.009, 92.8526],
+        'Воронеж': [51.672, 39.1843], 'Пермь': [58.0105, 56.2502],
+        'Волгоград': [48.708, 44.5133], 'Краснодар': [45.0355, 38.9753],
+        'Саратов': [51.5336, 46.0343], 'Тюмень': [57.1522, 65.5272],
+        'Тольятти': [53.5303, 49.3461], 'Ижевск': [56.8527, 53.2115],
+        'Иркутск': [52.287, 104.305], 'Владивосток': [43.1155, 131.8855],
+        'Ярославль': [57.6261, 39.8845], 'Хабаровск': [48.4827, 135.0838],
+        'Махачкала': [42.9764, 47.5024], 'Томск': [56.4977, 84.9744],
+        'Оренбург': [51.7682, 55.0969], 'Кемерово': [55.3547, 86.0873],
+        'Новокузнецк': [53.7557, 87.1099], 'Рязань': [54.6269, 39.6916],
+        'Астрахань': [46.3497, 48.0408], 'Набережные Челны': [55.7436, 52.3958],
+        'Пенза': [53.1951, 45.0184], 'Липецк': [52.6031, 39.5708],
+        'Тула': [54.1961, 37.6182], 'Киров': [58.6035, 49.668],
+        'Чебоксары': [56.1462, 47.2519], 'Калининград': [54.7104, 20.4522],
+        'Курск': [51.7304, 36.1926], 'Ульяновск': [54.3181, 48.4031],
+        'Ставрополь': [45.0428, 41.9734], 'Магнитогорск': [53.4186, 59.0472],
+        'Сочи': [43.5855, 39.7231], 'Белгород': [50.5952, 36.5873],
+        'Нижний Тагил': [57.9101, 59.9813], 'Архангельск': [64.5393, 40.5182],
+        'Владимир': [56.1291, 40.4076], 'Смоленск': [54.7818, 32.0401],
+        'Курган': [55.45, 65.3333], 'Орёл': [52.9651, 36.0785],
+        'Череповец': [59.1269, 37.9093], 'Вологда': [59.2181, 39.8886],
+        'Великий Устюг': [60.7636, 46.3056], 'Сокол': [59.4617, 40.1185],
+        'Грязовец': [58.8824, 40.0648], 'Бабаево': [59.3893, 35.9489],
+        'Кириллов': [59.8594, 38.3794], 'Белозерск': [60.0328, 37.7983],
+        'Устюжна': [58.8364, 36.4356], 'Вытегра': [61.0065, 36.4449],
+        'Никольск': [59.5331, 45.4622], 'Харовск': [59.9494, 40.1876],
+        'Кадников': [59.5021, 40.3333], 'Тотьма': [59.9737, 42.7589],
+        'Мурманск': [68.9585, 33.0827], 'Тверь': [56.8587, 35.9176],
+        'Брянск': [53.2434, 34.3639], 'Иваново': [56.9997, 40.973],
+        'Кострома': [57.7679, 40.9269], 'Великий Новгород': [58.5215, 31.2755],
+        'Псков': [57.8194, 28.3318], 'Петрозаводск': [61.7849, 34.3469],
+        'Рыбинск': [58.0446, 38.8428]
+    };
+
+    const database = {
+        'Москва': [
+            { name: 'Шинный Двор', address: 'ул. Ленина, 15', rating: '4.8', distance: '1.2 км', phone: '+7 (999) 111-22-33', coords: [55.7658, 37.6273] },
+            { name: 'Колесо Фортуны', address: 'пр. Мира, 42', rating: '4.5', distance: '2.5 км', phone: '+7 (999) 444-55-66', coords: [55.7458, 37.5973] },
+            { name: 'TurboTire', address: 'Шоссе Энтузиастов, 8', rating: '4.9', distance: '3.1 км', phone: '+7 (999) 777-88-99', coords: [55.7758, 37.6473] }
+        ],
+        'Череповец': [
+            { name: 'ЧереповецШина', address: 'пр. Строителей, 2', rating: '4.7', distance: '0.9 км', phone: '+7 (8202) 111-22-33', coords: [59.1369, 37.9193] },
+            { name: 'МеталлургШина', address: 'ул. Сталеваров, 26', rating: '4.5', distance: '1.8 км', phone: '+7 (8202) 444-55-66', coords: [59.1169, 37.8993] },
+            { name: 'Северный Монтаж', address: 'ул. Мира, 50', rating: '4.3', distance: '2.5 км', phone: '+7 (8202) 777-88-99', coords: [59.1469, 37.8893] }
+        ],
+        'Вологда': [
+            { name: 'ВологдаШина', address: 'ул. Мира, 34', rating: '4.8', distance: '0.6 км', phone: '+7 (8172) 111-22-33', coords: [59.2281, 39.8986] },
+            { name: 'Колесо Севера', address: 'Советский пр., 12', rating: '4.6', distance: '1.2 км', phone: '+7 (8172) 444-55-66', coords: [59.2081, 39.8786] },
+            { name: 'АвтоШина 35', address: 'ул. Ленинградская, 100', rating: '4.4', distance: '2.0 км', phone: '+7 (8172) 777-88-99', coords: [59.2381, 39.9186] }
+        ],
+        'default': [
+            { name: 'ШинСервис (Партнер)', address: 'ул. Центральная, 1', rating: '4.5', distance: '1.0 км', phone: '+7 (800) 555-35-35', coords: null },
+            { name: 'Быстрый Монтаж', address: 'пр. Автомобилистов, 10', rating: '4.2', distance: '2.2 км', phone: '+7 (800) 111-22-33', coords: null }
+        ]
+    };
+
+    const carDatabase = {
+        'Lada': ['Granta', 'Vesta', 'Niva', 'Largus', 'XRAY', 'Kalina', 'Priora', '2107', '2109', '2110'],
+        'Toyota': ['Camry', 'Corolla', 'RAV4', 'Land Cruiser', 'Highlander', 'Prius', 'Avensis', 'Yaris'],
+        'Kia': ['Rio', 'Sportage', 'Ceed', 'Optima', 'Sorento', 'Seltos', 'Soul', 'Picanto'],
+        'Hyundai': ['Solaris', 'Creta', 'Tucson', 'Santa Fe', 'Elantra', 'i30', 'ix35', 'Sonata'],
+        'Volkswagen': ['Polo', 'Tiguan', 'Passat', 'Golf', 'Jetta', 'Touareg', 'Teramont', 'Arteon'],
+        'Renault': ['Logan', 'Duster', 'Sandero', 'Kaptur', 'Arkana', 'Megane', 'Fluence'],
+        'Nissan': ['Qashqai', 'X-Trail', 'Almera', 'Juke', 'Murano', 'Terrano', 'Note'],
+        'Skoda': ['Octavia', 'Rapid', 'Kodiaq', 'Superb', 'Fabia', 'Karoq', 'Yeti'],
+        'Ford': ['Focus', 'Mondeo', 'Kuga', 'Explorer', 'Fiesta', 'EcoSport', 'Transit'],
+        'Mazda': ['3', '6', 'CX-5', 'CX-9', 'CX-30', 'MX-5'],
+        'BMW': ['3 series', '5 series', '7 series', 'X1', 'X3', 'X5', 'X6', 'X7'],
+        'Mercedes-Benz': ['C-class', 'E-class', 'S-class', 'GLA', 'GLC', 'GLE', 'GLS', 'A-class'],
+        'Audi': ['A3', 'A4', 'A6', 'A8', 'Q3', 'Q5', 'Q7', 'Q8'],
+        'Chevrolet': ['Cruze', 'Aveo', 'Lacetti', 'Niva', 'Captiva', 'Camaro'],
+        'Mitsubishi': ['Lancer', 'Outlander', 'Pajero', 'ASX', 'Eclipse Cross'],
+        'Peugeot': ['308', '408', '3008', '5008', '2008', 'Partner'],
+        'Citroen': ['C4', 'C5', 'C3', 'Berlingo', 'C4 Picasso'],
+        'Opel': ['Astra', 'Insignia', 'Corsa', 'Mokka', 'Zafira'],
+        'Honda': ['Civic', 'Accord', 'CR-V', 'Pilot', 'Fit'],
+        'Subaru': ['Forester', 'Outback', 'Impreza', 'Legacy', 'XV'],
+        'Volvo': ['XC60', 'XC90', 'S60', 'S90', 'V40', 'V60'],
+        'Land Rover': ['Discovery', 'Range Rover', 'Freelander', 'Defender', 'Evoque'],
+        'Lexus': ['RX', 'NX', 'ES', 'GS', 'LX', 'GX'],
+        'Infiniti': ['Q50', 'QX50', 'QX60', 'QX70', 'Q30'],
+        'Chery': ['Tiggo', 'Tiggo 7', 'Tiggo 8', 'Arrizo', 'Bonus'],
+        'Haval': ['H6', 'H9', 'Jolion', 'F7', 'Dargo'],
+        'Geely': ['Coolray', 'Atlas', 'Tugella', 'Emgrand', 'Monjaro'],
+        'Great Wall': ['Hover', 'Poer', 'Wingle'],
+        'UAZ': ['Patriot', 'Hunter', 'Profi', 'Pickup'],
+        'ГАЗ': ['Газель', 'Соболь', 'Волга'],
+        'Daewoo': ['Nexia', 'Matiz', 'Lanos'],
+        'Datsun': ['on-DO', 'mi-DO'],
+        'SsangYong': ['Actyon', 'Kyron', 'Rexton'],
+        'Suzuki': ['Vitara', 'SX4', 'Jimny', 'Grand Vitara'],
+        'Jeep': ['Grand Cherokee', 'Wrangler', 'Compass', 'Renegade'],
+        'Porsche': ['Cayenne', 'Macan', 'Panamera', '911'],
+        'Tesla': ['Model S', 'Model 3', 'Model X', 'Model Y']
+    };
+
+    const ALLOWED_LETTERS = 'АВЕКМНОРСТУХ';
+    const LATIN_TO_CYRILLIC = {
+        'A': 'А', 'B': 'В', 'E': 'Е', 'K': 'К', 'M': 'М',
+        'H': 'Н', 'O': 'О', 'P': 'Р', 'C': 'С', 'T': 'Т',
+        'Y': 'У', 'X': 'Х'
+    };
+
+    function normalizePlate(value) {
+        if (!value) return '';
+        let result = value.toUpperCase();
+        let converted = '';
+        for (let i = 0; i < result.length; i++) {
+            const ch = result[i];
+            converted += LATIN_TO_CYRILLIC[ch] || ch;
+        }
+        result = converted;
+        let cleaned = '';
+        for (let i = 0; i < result.length; i++) {
+            const ch = result[i];
+            if (/[0-9]/.test(ch) || ALLOWED_LETTERS.includes(ch)) {
+                cleaned += ch;
+            }
+        }
+        return cleaned.slice(0, 9);
+    }
+
+    function onPlateInput(e) {
+        const input = e.target;
+        const cursorPos = input.selectionStart;
+        const oldValue = input.value;
+        const newValue = normalizePlate(oldValue);
+        
+        if (oldValue !== newValue) {
+            input.value = newValue;
+            const diff = oldValue.length - newValue.length;
+            const newPos = Math.max(0, cursorPos - diff);
+            input.setSelectionRange(newPos, newPos);
+        }
+    }
+
+    let currentCity = 'Череповец';
+    let fullMap = null;
+    let shopMarkers = [];
+    let userData = {
+        name: '',
+        phone: '',
+        city: '',
+        cars: [],
+        orders: [],
+        favorites: [],
+        onboarded: false
+    };
+
+    let booking = {
+        shopIndex: -1,
+        shop: null,
+        date: null,
+        time: null,
+        car: null,
+        service: null,
+        comment: ''
+    };
+
+    const busySlots = {};
+
+    function saveUserData() {
+        try { localStorage.setItem('shinhub_user', JSON.stringify(userData)); } catch (e) {}
+    }
+
+    function loadUserData() {
+        try {
+            const saved = localStorage.getItem('shinhub_user');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // РАЗОВАЯ ОЧИСТКА: убираем старые тестовые записи
+                if (parsed.orders && parsed.orders.length > 0) {
+                    const hasOldTestOrders = parsed.orders.some(o => 
+                        o.title === 'Шиномонтаж R15 (4 колеса)' || 
+                        o.title === 'Балансировка R16'
+                    );
+                    if (hasOldTestOrders) {
+                        parsed.orders = [];
+                        try { localStorage.setItem('shinhub_user', JSON.stringify(parsed)); } catch (e) {}
+                    }
+                }
+                userData = { ...userData, ...parsed };
+                if (userData.city) currentCity = userData.city;
+            }
+        } catch (e) {}
+    }
+
+    function showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('nav-' + tab).classList.add('active');
+
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        if (tab === 'list') {
+            document.getElementById('list-tab').classList.add('active');
+        } else {
+            document.getElementById('map-tab').classList.add('active');
+            setTimeout(() => {
+                if (fullMap) {
+                    fullMap.invalidateSize();
+                    if (shopMarkers.length > 0) {
+                        const group = L.featureGroup(shopMarkers);
+                        fullMap.fitBounds(group.getBounds().pad(0.2));
+                    }
+                }
+            }, 300);
+        }
+    }
+
+    function confirmWelcomeCity() {
+        const city = document.getElementById('welcome-city-select').value;
+        if (!city) { alert('Выберите город'); return; }
+        
+        currentCity = city;
+        userData.city = city;
+        userData.onboarded = true;
+        saveUserData();
+        
+        document.getElementById('current-city-display').innerText = city;
+        document.getElementById('city-select').value = city;
+        
+        showScreen('main-screen');
+        
+        setTimeout(() => {
+            initFullMap(city);
+            renderShops(city);
+        }, 100);
+    }
+
+    function openCityModal() {
+        document.getElementById('city-select').value = currentCity;
+        document.getElementById('city-modal').classList.add('active');
+    }
+
+    function closeCityModal() {
+        document.getElementById('city-modal').classList.remove('active');
+    }
+
+    function applyCity() {
+        const city = document.getElementById('city-select').value;
+        if (!city) { alert('Выберите город!'); return; }
+        
+        currentCity = city;
+        userData.city = city;
+        saveUserData();
+        
+        document.getElementById('current-city-display').innerText = city;
+        closeCityModal();
+        
+        initFullMap(city);
+        renderShops(city);
+    }
+
+    function initFullMap(city) {
+        const coords = cityCoords[city] || [55.7558, 37.6173];
+        const mapContainer = document.getElementById('full-map');
+
+        if (fullMap) {
+            try { fullMap.remove(); } catch(e) {}
+            fullMap = null;
+        }
+
+        mapContainer.innerHTML = '';
+        mapContainer._leaflet_id = null;
+
+        L.TileLayer.prototype.options.referrerPolicy = 'strict-origin-when-cross-origin';
+
+        fullMap = L.map('full-map', {
+            zoomControl: true,
+            attributionControl: true,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            touchZoom: true,
+            dragging: true,
+            tap: true,
+            boxZoom: true,
+            keyboard: true,
+            inertia: true
+        }).setView(coords, 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors',
+            subdomains: 'abc',
+            referrerPolicy: 'strict-origin-when-cross-origin'
+        }).addTo(fullMap);
+
+        addShopMarkers(city, coords);
+        
+        setTimeout(() => { if (fullMap) fullMap.invalidateSize(); }, 100);
+    }
+
+    function getPopupContent(idx, shop) {
+        const isFav = isFavorite(shop.name);
+        return `
+            <div class="map-popup">
+                <h4>${shop.name}</h4>
+                <p>📍 ${shop.address}</p>
+                <p>📞 ${shop.phone}</p>
+                <p class="popup-rating">★ ${shop.rating} • 🚗 ${shop.distance}</p>
+                <button class="popup-btn" onclick="openBookingModal(${idx})">📅 Записаться</button>
+                <button class="popup-btn secondary" onclick="alert('Звонок в: ${shop.name}')">Позвонить</button>
+                <button class="popup-fav ${isFav ? 'active' : ''}" onclick="toggleFavoriteFromMap(${idx})">
+                    ${isFav ? '♥ В избранном' : '♡ В избранное'}
+                </button>
+            </div>
+        `;
+    }
+
+    function addShopMarkers(city, cityCenter) {
+        shopMarkers.forEach(m => {
+            try { fullMap.removeLayer(m); } catch(e) {}
+        });
+        shopMarkers = [];
+
+        let shops = database[city];
+        if (!shops) shops = database['default'];
+
+        shops.forEach((shop, idx) => {
+            let coords = shop.coords;
+            if (!coords) {
+                coords = [
+                    cityCenter[0] + (Math.random() - 0.5) * 0.02,
+                    cityCenter[1] + (Math.random() - 0.5) * 0.02
+                ];
+            }
+
+            const marker = L.marker(coords, {
+                icon: L.divIcon({
+                    className: 'shop-marker',
+                    html: `<div style="background:#ff1a1a;width:30px;height:30px;border-radius:50%;border:3px solid #fff;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:bold;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,0.4);">${idx + 1}</div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            }).addTo(fullMap);
+
+            marker.bindPopup(getPopupContent(idx, shop));
+            shopMarkers.push(marker);
+        });
+
+        if (shopMarkers.length > 0) {
+            const group = L.featureGroup(shopMarkers);
+            fullMap.fitBounds(group.getBounds().pad(0.2));
+        }
+    }
+
+    function isFavorite(name) {
+        return userData.favorites.some(f => f.name === name);
+    }
+
+    function toggleFavorite(idx, btnEl) {
+        let shops = database[currentCity] || database['default'];
+        const shop = shops[idx];
+        if (!shop) return;
+        
+        const existingIdx = userData.favorites.findIndex(f => f.name === shop.name);
+        
+        if (existingIdx >= 0) {
+            userData.favorites.splice(existingIdx, 1);
+            if (btnEl) {
+                btnEl.classList.remove('active');
+                btnEl.innerHTML = '♡';
+                btnEl.title = 'В избранное';
+            }
+        } else {
+            userData.favorites.push({
+                name: shop.name,
+                address: shop.address,
+                phone: shop.phone,
+                rating: shop.rating,
+                coords: shop.coords
+            });
+            if (btnEl) {
+                btnEl.classList.add('active');
+                btnEl.innerHTML = '♥';
+                btnEl.title = 'Убрать из избранного';
+            }
+        }
+        
+        saveUserData();
+        
+        if (document.getElementById('profile-screen').classList.contains('active')) {
+            renderFavorites();
+        }
+    }
+
+    function toggleFavoriteFromMap(idx) {
+        toggleFavorite(idx, null);
+        let shops = database[currentCity] || database['default'];
+        const shop = shops[idx];
+        if (shop && shopMarkers[idx]) {
+            shopMarkers[idx].setPopupContent(getPopupContent(idx, shop));
+        }
+        renderShops(currentCity);
+    }
+
+    function renderShops(city) {
+        const container = document.getElementById('shops-container');
+        container.innerHTML = '';
+        
+        let shops = database[city];
+        if (!shops) shops = database['default'];
+        
+        shops.forEach((shop, idx) => {
+            const isFav = isFavorite(shop.name);
+            const card = document.createElement('div');
+            card.className = 'tire-shop-card';
+            card.innerHTML = `
+                <div class="shop-header">
+                    <div class="shop-header-left">
+                        <div class="shop-name">${shop.name}</div>
+                        <div class="shop-rating">★ ${shop.rating}</div>
+                    </div>
+                    <button class="fav-btn ${isFav ? 'active' : ''}" 
+                            onclick="toggleFavorite(${idx}, this)" 
+                            title="${isFav ? 'Убрать из избранного' : 'В избранное'}">
+                        ${isFav ? '♥' : '♡'}
+                    </button>
+                </div>
+                <div class="shop-info">
+                    <span>📍 ${shop.address}</span>
+                    <span>📞 ${shop.phone}</span>
+                    <span class="distance">🚗 ${shop.distance}</span>
+                </div>
+                <div class="shop-actions">
+                    <button class="btn-show-on-map" onclick="focusOnShop(${idx})">На карте</button>
+                    <button class="btn-book" onclick="openBookingModal(${idx})">📅 Записаться</button>
+                    <button class="btn-call" onclick="alert('Звонок в: ${shop.name}')">Позвонить</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function focusOnShop(idx) {
+        if (!fullMap) return;
+        switchTab('map');
+        setTimeout(() => {
+            if (shopMarkers[idx]) {
+                fullMap.setView(shopMarkers[idx].getLatLng(), 15);
+                shopMarkers[idx].openPopup();
+            }
+        }, 350);
+    }
+
+    function openBookingModal(shopIdx) {
+        let shops = database[currentCity] || database['default'];
+        const shop = shops[shopIdx];
+        if (!shop) return;
+
+        booking.shopIndex = shopIdx;
+        booking.shop = shop;
+        booking.date = null;
+        booking.time = null;
+        booking.car = null;
+        booking.service = null;
+        booking.comment = '';
+
+        document.getElementById('booking-shop-name').innerText = shop.name + ' • ' + shop.address;
+        
+        const carSelect = document.getElementById('booking-car');
+        carSelect.innerHTML = '<option value="">Выберите автомобиль...</option>';
+        if (userData.cars && userData.cars.length > 0) {
+            userData.cars.forEach((car, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = car.brand + ' • ' + car.plate;
+                carSelect.appendChild(opt);
+            });
+        } else {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.disabled = true;
+            opt.textContent = '⚠️ Сначала добавьте авто в профиле';
+            carSelect.appendChild(opt);
+        }
+
+        document.getElementById('booking-service').value = 'Шиномонтаж (4 колеса)';
+        document.getElementById('booking-comment').value = '';
+        document.getElementById('booking-summary').classList.remove('visible');
+
+        renderDatePicker();
+        renderTimeSlots();
+
+        document.getElementById('booking-modal').classList.add('active');
+    }
+
+    function closeBookingModal() {
+        document.getElementById('booking-modal').classList.remove('active');
+    }
+
+    function renderDatePicker() {
+        const container = document.getElementById('date-scroll');
+        container.innerHTML = '';
+        
+        const today = new Date();
+        const dayNames = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+        const monthNames = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+        for (let i = 0; i < 14; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() + i);
+            
+            const card = document.createElement('div');
+            card.className = 'date-card';
+            const dateKey = date.toISOString().split('T')[0];
+            card.dataset.date = dateKey;
+            
+            let dayLabel = dayNames[date.getDay()];
+            if (i === 0) dayLabel = 'Сегодня';
+            if (i === 1) dayLabel = 'Завтра';
+
+            card.innerHTML = `
+                <div class="date-day">${dayLabel}</div>
+                <div class="date-num">${date.getDate()}</div>
+                <div class="date-month">${monthNames[date.getMonth()]}</div>
+            `;
+            
+            card.onclick = () => selectDate(dateKey, card);
+            container.appendChild(card);
+        }
+    }
+
+    function selectDate(dateKey, cardEl) {
+        booking.date = dateKey;
+        document.querySelectorAll('.date-card').forEach(c => c.classList.remove('selected'));
+        cardEl.classList.add('selected');
+        renderTimeSlots();
+        updateBookingSummary();
+    }
+
+    function renderTimeSlots() {
+        const container = document.getElementById('time-grid');
+        container.innerHTML = '';
+        
+        const slots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'];
+        const busyKey = booking.shop ? (booking.shop.name + '_' + booking.date) : '';
+        const busy = busySlots[busyKey] || [];
+        
+        slots.forEach(time => {
+            const slot = document.createElement('div');
+            slot.className = 'time-slot';
+            slot.textContent = time;
+            
+            if (!booking.date) {
+                slot.classList.add('busy');
+                slot.title = 'Сначала выберите дату';
+            } else if (busy.includes(time)) {
+                slot.classList.add('busy');
+                slot.title = 'Время занято';
+            } else {
+                slot.onclick = () => selectTime(time, slot);
+            }
+            
+            if (booking.time === time) slot.classList.add('selected');
+            container.appendChild(slot);
+        });
+    }
+
+    function selectTime(time, slotEl) {
+        booking.time = time;
+        document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+        slotEl.classList.add('selected');
+        updateBookingSummary();
+    }
+
+    function updateBookingSummary() {
+        const summary = document.getElementById('booking-summary');
+        
+        if (!booking.date || !booking.time) {
+            summary.classList.remove('visible');
+            return;
+        }
+
+        const carSelect = document.getElementById('booking-car');
+        const serviceSelect = document.getElementById('booking-service');
+        const carText = carSelect.value !== '' 
+            ? userData.cars[carSelect.value].brand + ' • ' + userData.cars[carSelect.value].plate
+            : '— не выбрано —';
+        
+        const dateObj = new Date(booking.date + 'T00:00:00');
+        const dayNames = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+        const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+        const dateText = `${dayNames[dateObj.getDay()]}, ${dateObj.getDate()} ${monthNames[dateObj.getMonth()]}`;
+        
+        summary.innerHTML = `
+            <strong>Ваша запись:</strong><br>
+            📅 ${dateText}<br>
+            🕐 ${booking.time}<br>
+            🔧 ${serviceSelect.value}<br>
+            🚗 ${carText}
+        `;
+        summary.classList.add('visible');
+    }
+
+    function confirmBooking() {
+        // ПРОВЕРКА 1: имя и телефон
+        if (!userData.name || !userData.name.trim() || !userData.phone || !userData.phone.trim()) {
+            const go = confirm('⚠️ Для записи нужно указать имя и телефон.\n\nПерейти в профиль и заполнить?');
+            if (go) {
+                closeBookingModal();
+                openProfile();
+                setTimeout(() => openEditModal(), 300);
+            }
+            return;
+        }
+
+        // ПРОВЕРКА 2: дата
+        if (!booking.date) { alert('Выберите дату'); return; }
+        
+        // ПРОВЕРКА 3: время
+        if (!booking.time) { alert('Выберите время'); return; }
+        
+        const carSelect = document.getElementById('booking-car');
+        const serviceSelect = document.getElementById('booking-service');
+        const commentInput = document.getElementById('booking-comment');
+
+        // ПРОВЕРКА 4: машина
+        if (carSelect.value === '' || carSelect.value === null) {
+            const go = confirm('⚠️ Сначала добавьте автомобиль в профиле.\n\nПерейти в профиль?');
+            if (go) {
+                closeBookingModal();
+                openProfile();
+                setTimeout(() => {
+                    const form = document.getElementById('add-car-form');
+                    if (!form.classList.contains('visible')) {
+                        toggleAddCar();
+                    }
+                }, 300);
+            }
+            return;
+        }
+
+        const car = userData.cars[carSelect.value];
+        if (!car) {
+            alert('Ошибка: автомобиль не найден. Попробуйте выбрать заново.');
+            return;
+        }
+        const carText = car.brand + ' • ' + car.plate;
+
+        const busyKey = booking.shop.name + '_' + booking.date;
+        if (!busySlots[busyKey]) busySlots[busyKey] = [];
+        busySlots[busyKey].push(booking.time);
+
+        const dateObj = new Date(booking.date + 'T00:00:00');
+        const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+        const dateStr = `${dateObj.getDate()} ${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+
+        const order = {
+            title: serviceSelect.value,
+            shopName: booking.shop.name,
+            shopAddress: booking.shop.address,
+            date: dateStr,
+            time: booking.time,
+            car: carText,
+            comment: commentInput.value.trim(),
+            price: getServicePrice(serviceSelect.value)
+        };
+
+        userData.orders.unshift(order);
+        saveUserData();
+
+        alert('✅ Вы записаны!\n\n' + 
+              '📍 ' + booking.shop.name + '\n' +
+              '📅 ' + dateStr + ' в ' + booking.time + '\n' +
+              '🔧 ' + serviceSelect.value + '\n' +
+              '🚗 ' + carText + '\n' +
+              '👤 ' + userData.name + ' • ' + userData.phone);
+
+        closeBookingModal();
+        if (document.getElementById('profile-screen').classList.contains('active')) {
+            renderOrders();
+        }
+    }
+
+    function getServicePrice(service) {
+        const prices = {
+            'Шиномонтаж (4 колеса)': '2 400 ₽',
+            'Балансировка колёс': '1 200 ₽',
+            'Сезонная замена': '2 000 ₽',
+            'Ремонт прокола': '500 ₽',
+            'Подкачка азотом': '300 ₽'
+        };
+        return prices[service] || '—';
+    }
+
+    function updateProfileButton() {
+        const btn = document.getElementById('profile-btn');
+        if (userData.name) {
+            btn.classList.add('has-user');
+            btn.innerText = userData.name.charAt(0).toUpperCase();
+        } else {
+            btn.classList.remove('has-user');
+            btn.innerText = '👤';
+        }
+    }
+
+    function openProfile() {
+        renderProfile();
+        showScreen('profile-screen');
+    }
+
+    function closeProfile() {
+        showScreen('main-screen');
+        setTimeout(() => { if (fullMap) fullMap.invalidateSize(); }, 200);
+    }
+
+    function renderProfile() {
+        document.getElementById('profile-avatar').innerText = userData.name ? userData.name.charAt(0).toUpperCase() : '?';
+        document.getElementById('profile-name').innerText = userData.name || 'Гость';
+        document.getElementById('profile-phone').innerText = userData.phone || 'Телефон не указан';
+
+        document.getElementById('profile-city').innerText = userData.city || '—';
+        document.getElementById('profile-name-row').innerText = userData.name || '—';
+        document.getElementById('profile-phone-row').innerText = userData.phone || '—';
+
+        renderCars();
+        renderOrders();
+        renderFavorites();
+    }
+
+    function populateBrands() {
+        const brandSelect = document.getElementById('car-brand-select');
+        brandSelect.innerHTML = '<option value="">Выберите марку...</option>';
+        
+        const brands = Object.keys(carDatabase).sort();
+        brands.forEach(brand => {
+            const opt = document.createElement('option');
+            opt.value = brand;
+            opt.textContent = brand;
+            brandSelect.appendChild(opt);
+        });
+        
+        const customOpt = document.createElement('option');
+        customOpt.value = '__custom__';
+        customOpt.textContent = '➕ Другая марка (ввести вручную)';
+        brandSelect.appendChild(customOpt);
+    }
+
+    function onBrandChange() {
+        const brandSelect = document.getElementById('car-brand-select');
+        const modelSelect = document.getElementById('car-model-select');
+        const customInput = document.getElementById('car-custom-brand');
+        const brand = brandSelect.value;
+        
+        modelSelect.innerHTML = '';
+        
+        if (brand === '__custom__') {
+            customInput.style.display = 'block';
+            customInput.focus();
+            modelSelect.disabled = true;
+            modelSelect.innerHTML = '<option value="">Введите марку вручную</option>';
+        } else if (brand && carDatabase[brand]) {
+            customInput.style.display = 'none';
+            customInput.value = '';
+            modelSelect.disabled = false;
+            modelSelect.innerHTML = '<option value="">Выберите модель...</option>';
+            
+            carDatabase[brand].forEach(model => {
+                const opt = document.createElement('option');
+                opt.value = model;
+                opt.textContent = model;
+                modelSelect.appendChild(opt);
+            });
+        } else {
+            customInput.style.display = 'none';
+            modelSelect.disabled = true;
+            modelSelect.innerHTML = '<option value="">Сначала выберите марку</option>';
+        }
+    }
+
+    function toggleAddCar() {
+        const form = document.getElementById('add-car-form');
+        form.classList.toggle('visible');
+        
+        if (form.classList.contains('visible')) {
+            document.getElementById('car-brand-select').value = '';
+            document.getElementById('car-model-select').innerHTML = '<option value="">Сначала выберите марку</option>';
+            document.getElementById('car-model-select').disabled = true;
+            document.getElementById('car-custom-brand').value = '';
+            document.getElementById('car-custom-brand').style.display = 'none';
+            document.getElementById('car-plate').value = '';
+            
+            document.getElementById('car-brand-select').focus();
+        }
+    }
+
+    function addCar() {
+        const brandSelect = document.getElementById('car-brand-select');
+        const modelSelect = document.getElementById('car-model-select');
+        const customInput = document.getElementById('car-custom-brand');
+        const plateInput = document.getElementById('car-plate');
+        
+        let brand = '';
+        let model = '';
+        
+        if (brandSelect.value === '__custom__') {
+            brand = customInput.value.trim();
+            model = '';
+            if (!brand) {
+                alert('Введите название марки');
+                customInput.focus();
+                return;
+            }
+        } else {
+            brand = brandSelect.value;
+            model = modelSelect.value;
+            
+            if (!brand) {
+                alert('Выберите марку автомобиля');
+                return;
+            }
+            if (!model) {
+                alert('Выберите модель автомобиля');
+                return;
+            }
+        }
+        
+        const plate = normalizePlate(plateInput.value.trim()) || '—';
+        const fullName = model ? (brand + ' ' + model) : brand;
+        
+        userData.cars.push({ 
+            brand: fullName, 
+            plate: plate,
+            brandOnly: brand,
+            modelOnly: model
+        });
+        saveUserData();
+        
+        const form = document.getElementById('add-car-form');
+        form.classList.remove('visible');
+        
+        document.getElementById('car-brand-select').value = '';
+        document.getElementById('car-model-select').innerHTML = '<option value="">Сначала выберите марку</option>';
+        document.getElementById('car-model-select').disabled = true;
+        document.getElementById('car-custom-brand').value = '';
+        document.getElementById('car-custom-brand').style.display = 'none';
+        document.getElementById('car-plate').value = '';
+        
+        renderCars();
+    }
+
+    function renderCars() {
+        const container = document.getElementById('cars-list');
+        
+        if (!userData.cars || userData.cars.length === 0) {
+            container.innerHTML = '<div class="empty-state">У вас пока нет добавленных автомобилей</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        userData.cars.forEach((car, idx) => {
+            const item = document.createElement('div');
+            item.className = 'car-item';
+            
+            const info = document.createElement('div');
+            info.className = 'car-item-info';
+            
+            const name = document.createElement('div');
+            name.className = 'car-item-name';
+            name.textContent = car.brand;
+            
+            const plate = document.createElement('div');
+            plate.className = 'car-item-plate';
+            plate.textContent = car.plate;
+            
+            info.appendChild(name);
+            info.appendChild(plate);
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'car-item-delete';
+            delBtn.textContent = 'Удалить';
+            delBtn.setAttribute('data-car-index', idx);
+            
+            item.appendChild(info);
+            item.appendChild(delBtn);
+            container.appendChild(item);
+        });
+    }
+
+    document.getElementById('cars-list').addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('car-item-delete')) {
+            const idx = parseInt(e.target.getAttribute('data-car-index'), 10);
+            removeCar(idx);
+        }
+    });
+
+    function removeCar(idx) {
+        if (isNaN(idx) || idx < 0 || idx >= userData.cars.length) return;
+        
+        const car = userData.cars[idx];
+        if (!confirm('Удалить ' + car.brand + ' ' + car.plate + '?')) return;
+        
+        userData.cars.splice(idx, 1);
+        saveUserData();
+        renderCars();
+    }
+
+    function renderOrders() {
+        const container = document.getElementById('orders-list');
+        if (!userData.orders || userData.orders.length === 0) {
+            container.innerHTML = '<div class="empty-state">Записей пока нет</div>';
+            return;
+        }
+        container.innerHTML = '';
+        userData.orders.forEach(order => {
+            const item = document.createElement('div');
+            item.className = 'order-item';
+            item.innerHTML = `
+                <div class="order-info">
+                    <div class="order-title">${order.title}</div>
+                    <div class="order-subtitle">📍 ${order.shopName || ''}</div>
+                    <div class="order-date">📅 ${order.date} в ${order.time}</div>
+                    <div class="order-date">🚗 ${order.car}</div>
+                </div>
+                <div class="order-price">${order.price}</div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function renderFavorites() {
+        const container = document.getElementById('favorites-list');
+        if (!userData.favorites || userData.favorites.length === 0) {
+            container.innerHTML = '<div class="empty-state">Нет избранных шиномонтажей.<br>Нажмите ♡ на карточке, чтобы добавить.</div>';
+            return;
+        }
+        container.innerHTML = '';
+        userData.favorites.forEach(fav => {
+            const item = document.createElement('div');
+            item.className = 'car-item';
+            item.innerHTML = `
+                <div class="car-item-info">
+                    <div class="car-item-name">${fav.name}</div>
+                    <div class="car-item-plate">${fav.address}</div>
+                    <div class="car-item-plate">★ ${fav.rating || '—'} • 📞 ${fav.phone || '—'}</div>
+                </div>
+                <button class="car-item-delete" onclick="removeFavorite('${fav.name.replace(/'/g, "\\'")}')">✕</button>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function removeFavorite(name) {
+        userData.favorites = userData.favorites.filter(f => f.name !== name);
+        saveUserData();
+        renderFavorites();
+        if (document.getElementById('main-screen').classList.contains('active')) {
+            renderShops(currentCity);
+        }
+    }
+
+    function openEditModal() {
+        document.getElementById('edit-name').value = userData.name;
+        document.getElementById('edit-phone').value = userData.phone;
+        document.getElementById('edit-modal').classList.add('active');
+    }
+
+    function closeEditModal() {
+        document.getElementById('edit-modal').classList.remove('active');
+    }
+
+    function saveProfile() {
+        userData.name = document.getElementById('edit-name').value.trim();
+        userData.phone = document.getElementById('edit-phone').value.trim();
+        saveUserData();
+        closeEditModal();
+        renderProfile();
+        updateProfileButton();
+    }
+
+    ['edit-modal', 'city-modal', 'booking-modal'].forEach(id => {
+        document.getElementById(id).addEventListener('click', function(e) {
+            if (e.target === this) this.classList.remove('active');
+        });
+    });
+
+    document.getElementById('booking-car').addEventListener('change', updateBookingSummary);
+    document.getElementById('booking-service').addEventListener('change', updateBookingSummary);
+
+    window.confirmWelcomeCity = confirmWelcomeCity;
+    window.openCityModal = openCityModal;
+    window.closeCityModal = closeCityModal;
+    window.applyCity = applyCity;
+    window.switchTab = switchTab;
+    window.openProfile = openProfile;
+    window.closeProfile = closeProfile;
+    window.openEditModal = openEditModal;
+    window.closeEditModal = closeEditModal;
+    window.saveProfile = saveProfile;
+    window.toggleAddCar = toggleAddCar;
+    window.addCar = addCar;
+    window.removeCar = removeCar;
+    window.removeFavorite = removeFavorite;
+    window.focusOnShop = focusOnShop;
+    window.openBookingModal = openBookingModal;
+    window.closeBookingModal = closeBookingModal;
+    window.confirmBooking = confirmBooking;
+    window.populateBrands = populateBrands;
+    window.onBrandChange = onBrandChange;
+    window.onPlateInput = onPlateInput;
+    window.toggleFavorite = toggleFavorite;
+    window.toggleFavoriteFromMap = toggleFavoriteFromMap;
+
+    window.addEventListener('DOMContentLoaded', function() {
+        loadUserData();
+        updateProfileButton();
+        populateBrands();
+        
+        document.getElementById('car-brand-select').addEventListener('change', onBrandChange);
+        document.getElementById('car-plate').addEventListener('input', onPlateInput);
+        
+        // Если пользователь уже выбирал город — сразу в приложение
+        if (userData.onboarded && userData.city) {
+            currentCity = userData.city;
+            document.getElementById('current-city-display').innerText = currentCity;
+            document.getElementById('city-select').value = currentCity;
+            showScreen('main-screen');
+            setTimeout(function() {
+                initFullMap(currentCity);
+                renderShops(currentCity);
+            }, 200);
+        } else {
+            // Первый запуск — показываем приветствие
+            showScreen('welcome-screen');
+            if (currentCity) {
+                document.getElementById('welcome-city-select').value = currentCity;
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
